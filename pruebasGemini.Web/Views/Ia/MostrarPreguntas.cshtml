@@ -1,23 +1,28 @@
-﻿@{
+﻿@using PruebasGemini.Web.Models
+@model ExamenModel
+
+@{
     ViewData["Title"] = "MostrarPreguntas";
 }
 
 <h2>Preguntas Generadas</h2>
 
-@if (Model != null && Model.Length > 0)
+@if (Model != null && Model.Preguntas.Any())
 {
-    <form method="post" action="/Ia/CorregirRespuestas">
+    <form method="post" asp-action="CorregirRespuestas">
         <ul>
-            @for (var i = 0; i < Model.Length; i++)
+            @for (int i = 0; i < Model.Preguntas.Count; i++)
             {
                 <li>
-                    @Model[i]
+                    @Model.Preguntas[i].Texto
                     <br />
-                    <input type="hidden" name="preguntas[@i]" value="@Model[i]" />
-                    <input type="text" name="respuestas[@i]" />
+                    <input type="hidden" name="Preguntas[@i].Texto" value="@Model.Preguntas[i].Texto" />
+                    <label for="respuesta_@i">Respuesta:</label>
+                    <input type="text" id="respuesta_@i" name="Preguntas[@i].RespuestaUsuario" value="@Model.Preguntas[i].RespuestaUsuario" />
                 </li>
             }
         </ul>
+        <input type="hidden" name="Resumen" value="@Model.Resumen" />
         <button type="submit">Corregir respuestas</button>
     </form>
 }

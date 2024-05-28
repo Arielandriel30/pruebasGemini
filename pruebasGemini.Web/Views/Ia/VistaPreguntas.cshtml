@@ -1,4 +1,7 @@
-﻿@{
+﻿@using PruebasGemini.Web.Models
+@model ExamenModel
+
+@{
     ViewData["Title"] = "VistaPreguntas";
 }
 
@@ -6,7 +9,7 @@
 
 <form asp-action="GenerateQuestions" method="post">
     <label for="resumen">Resumen:</label>
-    <textarea id="resumen" name="resumen" rows="4" cols="50"></textarea>
+    <textarea id="resumen" name="Resumen" rows="4" cols="50"></textarea>
     <br />
     <button type="submit">Generar Preguntas</button>
 </form>

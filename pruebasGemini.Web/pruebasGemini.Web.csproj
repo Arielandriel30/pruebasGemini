@@ -11,6 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PruebasGemini.Configurations\PruebasGemini.Configurations.csproj" />
+    <ProjectReference Include="..\PruebasGemini.Entidades\PruebasGemini.Entidades.csproj" />
     <ProjectReference Include="..\PruebasGemini.Logica\PruebasGemini.Logica.csproj" />
   </ItemGroup>
 

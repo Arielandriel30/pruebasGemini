@@ -4,84 +4,77 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Options;
+using PruebasGemini.Entidades;
 
 namespace PruebasGemini.Logica.Servicios
 {
-    public class IaService
-    {
-        private readonly HttpClient _httpClient;
-        private readonly ILogger<IaService> _logger;
-        private readonly string _apiBaseUrl = "https://generativelanguage.googleapis.com"; // URL base de la API
-        private readonly string _apiKey = ""; // API Key
 
-        public IaService(HttpClient httpClient, ILogger<IaService> logger)
+    public interface IIaService
+    {
+        Task<string[]> GenerateQuestions(Examen examen);
+        Task<string> GetFeedback(Examen examen);
+        public List<Examen> GetExamenes();
+    }
+    public class IaService : IIaService
+    {
+        private static List<Examen> _examenes = new List<Examen>();
+        private readonly IApiService _apiService;
+        private readonly ILogger<IaService> _logger;
+
+        public IaService(IApiService apiService, ILogger<IaService> logger)
         {
-            _httpClient = httpClient;
+            _apiService = apiService;
             _logger = logger;
         }
 
-        public async Task<string[]> GenerateQuestions(string texto)
+        public async Task<string[]> GenerateQuestions(Examen examen)
         {
             try
             {
-                // Texto fijo para solicitar la generación de preguntas
-                string textoConPrompt = $"Generame 10 preguntas de este texto: {texto}";
+                string textoConPrompt = $"Generame 10 preguntas de este texto: {examen.TextoOriginal}";
 
-                // Construye la solicitud con el texto proporcionado y otros parámetros necesarios
                 var requestBody = new
                 {
                     contents = new[]
                     {
-                        new
+                    new
+                    {
+                        parts = new[]
                         {
-                            parts = new[]
+                            new
                             {
-                                new
-                                {
-                                    text = textoConPrompt
-                                }
+                                text = textoConPrompt
                             }
                         }
                     }
+                }
                 };
 
-                var requestContent = new StringContent(JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
-
-                // Agrega el endpoint específico al final de la URL base
-                var requestUrl = $"{_apiBaseUrl}/v1/models/gemini-1.5-pro:generateContent?key={_apiKey}"; 
-
-                // Realiza la solicitud HTTP POST
-                var response = await _httpClient.PostAsync(requestUrl, requestContent);
-
-                var jsonResponse = await response.Content.ReadAsStringAsync();
+                var jsonResponse = await _apiService.PostAsync("v1/models/gemini-1.5-pro:generateContent", requestBody);
                 var responseData = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-                var questions = new List<string>(); // Utilizamos una lista para almacenar las preguntas
+                var questions = new List<string>();
 
-                // Verificamos si la estructura de la respuesta es la esperada
                 if (responseData != null && responseData["candidates"] != null && responseData["candidates"][0] != null
                     && responseData["candidates"][0]["content"] != null && responseData["candidates"][0]["content"]["parts"] != null
                     && responseData["candidates"][0]["content"]["parts"][0] != null && responseData["candidates"][0]["content"]["parts"][0]["text"] != null)
                 {
-                    // Obtenemos el texto de las preguntas
                     var text = responseData["candidates"][0]["content"]["parts"][0]["text"].ToString();
-
-                    // Dividimos el texto en líneas
                     var lines = text.Split('\n');
 
-                    // Recorremos las líneas y buscamos aquellas que comiencen con un número seguido de un punto
                     foreach (var line in lines)
                     {
-                        // Si la línea empieza con un número seguido de un punto, la consideramos como una pregunta
                         if (Regex.IsMatch(line, @"^\d+\.\s"))
                         {
-                            // Agregamos la pregunta a la lista
                             questions.Add(line.Trim());
                         }
                     }
 
-                    // Verificamos si se encontraron preguntas
                     if (questions.Any())
                     {
+                        // Agregar el examen a la lista
+                        _examenes.Add(examen);
+
                         return questions.ToArray();
                     }
                     else
@@ -95,7 +88,6 @@ namespace PruebasGemini.Logica.Servicios
                     _logger.LogError("La estructura de la respuesta de la API no es la esperada.");
                     return null;
                 }
-               
             }
             catch (Exception ex)
             {
@@ -104,19 +96,19 @@ namespace PruebasGemini.Logica.Servicios
             }
         }
 
-        // Método para obtener el feedback
-        public async Task<string> GetFeedback(string[] preguntas, string[] respuestas)
+
+
+
+        public async Task<string> GetFeedback(Examen examen)
         {
             try
             {
-                // Construye el texto de la solicitud
                 var textoConRespuestas = "Quiero que me hagas una corrección de las siguientes preguntas y respuestas:\n\n";
-                for (int i = 0; i < preguntas.Length; i++)
+                foreach (var pregunta in examen.Preguntas)
                 {
-                    textoConRespuestas += $"{preguntas[i]}\nRespuesta: {respuestas[i]}\n\n";
+                    textoConRespuestas += $"{pregunta.Texto}\nRespuesta: {pregunta.RespuestaUsuario}\n\n";
                 }
 
-                // Construye la solicitud con el texto proporcionado
                 var requestBody = new
                 {
                     contents = new[]
@@ -134,23 +126,13 @@ namespace PruebasGemini.Logica.Servicios
                 }
                 };
 
-                var requestContent = new StringContent(JsonConvert.SerializeObject(requestBody), Encoding.UTF8, "application/json");
-
-                // Agrega el endpoint específico al final de la URL base
-                var requestUrl = $"{_apiBaseUrl}/v1/models/gemini-1.5-pro:generateContent?key={_apiKey}";
-
-                // Realiza la solicitud HTTP POST
-                var response = await _httpClient.PostAsync(requestUrl, requestContent);
-
-                var jsonResponse = await response.Content.ReadAsStringAsync();
+                var jsonResponse = await _apiService.PostAsync("v1/models/gemini-1.5-pro:generateContent", requestBody);
                 var responseData = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
 
-                // Verificamos si la estructura de la respuesta es la esperada
                 if (responseData != null && responseData["candidates"] != null && responseData["candidates"][0] != null
                     && responseData["candidates"][0]["content"] != null && responseData["candidates"][0]["content"]["parts"] != null
                     && responseData["candidates"][0]["content"]["parts"][0] != null && responseData["candidates"][0]["content"]["parts"][0]["text"] != null)
                 {
-                    // Obtenemos el feedback
                     return responseData["candidates"][0]["content"]["parts"][0]["text"].ToString();
                 }
                 else
@@ -165,6 +147,11 @@ namespace PruebasGemini.Logica.Servicios
                 return null;
             }
         }
+
+        public List<Examen> GetExamenes()
+        {
+            return _examenes;
         }
 
-}
+    }
+    }

@@ -1,12 +1,15 @@
-﻿@{
+﻿@using PruebasGemini.Web.Models
+@model ExamenModel
+
+@{
     ViewData["Title"] = "MostrarFeedback";
 }
 
 <h2>Feedback de las Respuestas</h2>
 
-@if (ViewBag.Feedback != null)
+@if (!string.IsNullOrEmpty(Model.Feedback))
 {
-    <pre>@ViewBag.Feedback</pre>
+    <pre>@Model.Feedback</pre>
 }
 else
 {

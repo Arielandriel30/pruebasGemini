@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+using PruebasGemini.Configurations;
 using PruebasGemini.Logica.Servicios;
 
 
@@ -5,7 +7,11 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
-builder.Services.AddHttpClient<IaService>();
+builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
+builder.Services.AddSingleton<IIaService, IaService>();
+builder.Services.AddSingleton<IApiService, ApiService>();
+builder.Services.AddHttpClient();
+
 
 var app = builder.Build();
 

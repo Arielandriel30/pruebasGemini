@@ -1,86 +1,91 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using pruebasGemini.Web.Models;
 using PruebasGemini.Logica.Servicios;
+using PruebasGemini.Web.Models;
 
 namespace pruebasGemini.Web.Controllers
 {
     public class IaController : Controller
     {
-        private readonly IaService _iaService;
 
-        public IaController(IaService iaService)
+        private readonly IIaService _iaService;
+
+        public IaController(IIaService iaService)
         {
             _iaService = iaService;
         }
 
         public IActionResult VistaPreguntas()
         {
-            return View();
+            return View(new ExamenModel());
         }
 
         [HttpPost]
-        public async Task<IActionResult> GenerateQuestions(string resumen)
+        public async Task<IActionResult> GenerateQuestions(ExamenModel examenModel)
         {
             try
             {
-                var preguntas = await _iaService.GenerateQuestions(resumen);
+                var examenEntidad = examenModel.MapearAEntidad();
+                var preguntasGeneradas = await _iaService.GenerateQuestions(examenEntidad);
 
-                // Verifica si se generaron preguntas
-                if (preguntas != null && preguntas.Any())
+                if (preguntasGeneradas != null && preguntasGeneradas.Any())
                 {
-                    // Pasa las preguntas como modelo a la vista MostrarPreguntas
-                    return View("MostrarPreguntas", preguntas);
+                    examenModel.Preguntas = preguntasGeneradas.Select(p =>
+                    {
+                        var preguntaModel = new PreguntaModel();
+                        preguntaModel.ParsearPregunta(p);
+                        return preguntaModel;
+                    }).ToList();
+
+                    return View("MostrarPreguntas", examenModel);
                 }
                 else
                 {
                     ViewBag.Error = "No se pudieron generar preguntas.";
-                    return View("VistaPreguntas");
+                    return View("VistaPreguntas", examenModel);
                 }
             }
             catch (Exception ex)
             {
                 ViewBag.Error = "Error al generar preguntas: " + ex.Message;
-                return View("VistaPreguntas");
+                return View("VistaPreguntas", examenModel);
             }
         }
 
-        public IActionResult MostrarPreguntas(string[] preguntas)
+        public IActionResult MostrarPreguntas(ExamenModel examenModel)
         {
-      
-            return View(preguntas);
+            return View(examenModel);
         }
 
-
-
         [HttpPost]
-        public async Task<IActionResult> CorregirRespuestas(string[] preguntas, string[] respuestas)
+        public async Task<IActionResult> CorregirRespuestas(ExamenModel examenModel)
         {
             try
             {
-                var feedback = await _iaService.GetFeedback(preguntas, respuestas);
+                var examenEntidad = examenModel.MapearAEntidad();
+                var feedback = await _iaService.GetFeedback(examenEntidad);
 
                 if (!string.IsNullOrEmpty(feedback))
                 {
-                    ViewBag.Feedback = feedback;
-                    return View("MostrarFeedback");
+                    examenModel.Feedback = feedback;
+                    return View("MostrarFeedback", examenModel);
                 }
                 else
                 {
                     ViewBag.Error = "No se pudo obtener el feedback.";
-                    return View("MostrarPreguntas", preguntas);
+                    return View("MostrarPreguntas", examenModel);
                 }
             }
             catch (Exception ex)
             {
                 ViewBag.Error = "Error al obtener el feedback: " + ex.Message;
-                return View("MostrarPreguntas", preguntas);
+                return View("MostrarPreguntas", examenModel);
             }
         }
 
-        public IActionResult MostrarFeedback()
+        public IActionResult MostrarFeedback(ExamenModel examenModel)
         {
-            return View();
+            return View(examenModel);
         }
     }
-
-}
+    
+    }
